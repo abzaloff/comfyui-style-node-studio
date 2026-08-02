@@ -17,6 +17,8 @@ const styles = {
     ],
 };
 const favorites = [{ category: "Photography", name: "Film Noir" }];
+let authenticatedViewRequests = 0;
+let thumbnailSaveRequests = 0;
 
 function send(response, status, contentType, body) {
     response.writeHead(status, { "Content-Type": contentType, "Cache-Control": "no-store" });
@@ -45,6 +47,10 @@ const server = http.createServer(async (request, response) => {
             <html><head><meta charset="utf-8"><title>Style Node Studio UI QA</title>
             <style>html,body{margin:0;min-height:100%;background:#050505;color:#fff}</style></head>
             <body><script type="module">
+                localStorage.setItem(
+                    "comfyui_style_node_last_generated_img",
+                    "/api/view?filename=generated.png&subfolder=&type=output",
+                );
                 await import("/web/js/style_node_studio.js");
                 if (new URLSearchParams(location.search).get("mode") === "node") {
                     const width = Number(new URLSearchParams(location.search).get("width")) || 760;
@@ -82,7 +88,26 @@ const server = http.createServer(async (request, response) => {
         return;
     }
     if (url.pathname === "/scripts/api.js") {
-        send(response, 200, "text/javascript; charset=utf-8", "export const api={addEventListener(){},apiURL(value){return value;}};");
+        send(response, 200, "text/javascript; charset=utf-8", `
+            export const api={
+                addEventListener(){},
+                apiURL(value){return "/api"+value;},
+                fetchApi(value,options={}){
+                    const headers=new Headers(options.headers||{});
+                    headers.set("X-Comfy-Api","1");
+                    return fetch("/api"+value,{...options,headers});
+                }
+            };
+        `);
+        return;
+    }
+    if (url.pathname === "/api/view") {
+        if (request.headers["x-comfy-api"] !== "1") {
+            send(response, 401, "text/plain; charset=utf-8", "Use api.fetchApi");
+            return;
+        }
+        authenticatedViewRequests += 1;
+        send(response, 200, "image/png", fs.readFileSync(path.join(projectRoot, "assets/style-node-studio.png")));
         return;
     }
     if (url.pathname === "/style_node_studio/api/get_styles") {
@@ -95,6 +120,33 @@ const server = http.createServer(async (request, response) => {
         if (index >= 0) favorites.splice(index, 1);
         if (body.favorite) favorites.push({ category: body.category, name: body.name });
         send(response, 200, "application/json; charset=utf-8", JSON.stringify({ status: "ok", ...body }));
+        return;
+    }
+    if (url.pathname === "/style_node_studio/api/save_thumbnail" && request.method === "POST") {
+        thumbnailSaveRequests += 1;
+        send(response, 200, "application/json; charset=utf-8", JSON.stringify({
+            status: "ok",
+            thumbnail: "/style_node_studio/api/thumbnail?category=Generated&filename=Generated%20Preview.webp",
+        }));
+        return;
+    }
+    if (url.pathname === "/style_node_studio/api/save_style" && request.method === "POST") {
+        const body = await readJsonBody(request);
+        styles[body.category] ||= [];
+        styles[body.category] = styles[body.category].filter((style) => style.name !== body.style.name);
+        styles[body.category].push(body.style);
+        send(response, 200, "application/json; charset=utf-8", JSON.stringify({ status: "ok", ...body }));
+        return;
+    }
+    if (url.pathname === "/style_node_studio/api/thumbnail") {
+        send(response, 200, "image/png", fs.readFileSync(path.join(projectRoot, "assets/style-node-studio.png")));
+        return;
+    }
+    if (url.pathname === "/test-state") {
+        send(response, 200, "application/json; charset=utf-8", JSON.stringify({
+            authenticatedViewRequests,
+            thumbnailSaveRequests,
+        }));
         return;
     }
     send(response, 404, "text/plain; charset=utf-8", "Not found");

@@ -3,11 +3,49 @@ import { api } from "../../../scripts/api.js";
 
 const API_ROOT = "/style_node_studio/api";
 const LAST_IMAGE_KEY = "comfyui_style_node_last_generated_img";
+const CARD_SIZE_KEY = "comfyui_style_node_card_size";
 const FAVORITES_CATEGORY = "Favs";
 const MIN_GALLERY_HEIGHT = 280;
-const NODE_CARD_MIN_WIDTH = 84;
-const NODE_CARD_MAX_WIDTH = 96;
+const DEFAULT_CARD_SIZE = 96;
+const MIN_CARD_SIZE = 96;
+const MAX_CARD_SIZE = 152;
 const NODE_CARD_GAP = 6;
+
+function clampCardSize(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return DEFAULT_CARD_SIZE;
+    return Math.min(MAX_CARD_SIZE, Math.max(MIN_CARD_SIZE, Math.round(numeric)));
+}
+
+function loadCardSize() {
+    try {
+        return clampCardSize(localStorage.getItem(CARD_SIZE_KEY));
+    } catch (_) {
+        return DEFAULT_CARD_SIZE;
+    }
+}
+
+const cardSizeStore = {
+    value: loadCardSize(),
+    listeners: new Set(),
+
+    subscribe(listener) {
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    },
+
+    set(value) {
+        const next = clampCardSize(value);
+        if (this.value === next) return;
+        this.value = next;
+        try {
+            localStorage.setItem(CARD_SIZE_KEY, String(next));
+        } catch (_) {
+            // The setting still applies to the current session.
+        }
+        for (const listener of this.listeners) listener(next);
+    },
+};
 
 function createElement(tag, options = {}) {
     const element = document.createElement(tag);
@@ -211,15 +249,29 @@ async function imageBlobFromElementSource(source) {
     if (typeof source !== "string" || !source.trim()) {
         throw new Error("Choose an image first");
     }
+    const trimmed = source.trim();
     let response;
     try {
-        response = await fetch(source.trim());
-    } catch (_) {
-        throw new Error("Cannot read this image URL. A remote server may be blocking access.");
+        let comfyViewPath = "";
+        if (typeof api.apiURL === "function" && typeof location !== "undefined") {
+            const sourceUrl = new URL(trimmed, location.href);
+            const viewUrl = new URL(api.apiURL("/view"), location.href);
+            if (sourceUrl.origin === viewUrl.origin && sourceUrl.pathname === viewUrl.pathname) {
+                comfyViewPath = `/view${sourceUrl.search}`;
+            }
+        }
+        response = comfyViewPath && typeof api.fetchApi === "function"
+            ? await api.fetchApi(comfyViewPath, { cache: "no-store" })
+            : await fetch(trimmed, { cache: "no-store" });
+    } catch (error) {
+        console.warn("Style Node Studio cannot read thumbnail source:", error);
+        throw new Error("Cannot read this image URL. Check that the generated file still exists.");
     }
     if (!response.ok) throw new Error(`Cannot read thumbnail (${response.status})`);
     const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) throw new Error("Selected URL is not an image");
+    if (!blob.type.startsWith("image/")) {
+        throw new Error(`Selected URL is not an image (${blob.type || "unknown content type"})`);
+    }
     return blob;
 }
 
@@ -387,7 +439,7 @@ function showStyleManagerModal(node, editData) {
     });
     modal.id = "style-node-studio-modal";
     modal.innerHTML = `
-        <div style="background:#141414;color:#fff;border-radius:14px;width:70vw;min-width:920px;max-width:95vw;height:85vh;max-height:800px;border:1px solid #2a2a2a;box-shadow:0 25px 50px -12px rgba(0,0,0,.7);display:flex;flex-direction:column;overflow:hidden;">
+        <div data-sns-manager-panel style="background:#141414;color:#fff;border-radius:14px;width:70vw;min-width:920px;max-width:95vw;height:85vh;max-height:800px;border:1px solid #2a2a2a;box-shadow:0 25px 50px -12px rgba(0,0,0,.7);display:flex;flex-direction:column;overflow:hidden;">
             <div style="display:flex;justify-content:space-between;align-items:center;background:#0b0b0b;padding:16px 24px;border-bottom:1px solid #262626;">
                 <div><h3 style="margin:0;font-size:16px;color:#f3f4f6;">🎨 Style Node Studio — Manager</h3><p style="margin:3px 0 0;font-size:12px;color:#9ca3af;">Add, edit and delete style presets</p></div>
                 <button id="sns-close" type="button" style="background:#262626;border:1px solid #3d3d3d;color:#e5e7eb;font-size:16px;padding:6px 12px;border-radius:8px;cursor:pointer;">✕</button>
@@ -403,6 +455,7 @@ function showStyleManagerModal(node, editData) {
                     <input id="sns-file-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"><button id="sns-file-image" type="button" style="background:#262626;border:1px solid #3d3d3d;color:#e5e7eb;padding:7px;border-radius:6px;font-size:11px;cursor:pointer;">Choose image</button><button id="sns-last-image" type="button" style="background:#262626;border:1px solid #3d3d3d;color:#e5e7eb;padding:7px;border-radius:6px;font-size:11px;cursor:pointer;">Use last generated</button></div>
                     <button id="sns-save" type="button" style="background:#f59e0b;color:#000;font-weight:bold;border:none;padding:10px;border-radius:6px;font-size:12px;cursor:pointer;">Save style</button>
+                    <label style="background:#171717;border:1px solid #2f2f2f;border-radius:7px;padding:8px 10px;font-size:11px;color:#9ca3af;font-weight:600;"><span style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><span>Card size</span><output id="sns-card-size-value" style="color:#f59e0b;font-variant-numeric:tabular-nums;">96 px</output></span><input id="sns-card-size" type="range" min="96" max="152" step="1" style="display:block;width:100%;margin:0;accent-color:#f59e0b;cursor:pointer;"></label>
                     <button id="sns-delete-current" type="button" style="display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#ef4444;padding:8px;border-radius:6px;font-size:11px;cursor:pointer;">Delete this preset</button>
                     <div id="sns-form-status" role="status" style="min-height:16px;font-size:11px;color:#9ca3af;"></div>
                 </div>
@@ -425,8 +478,11 @@ function showStyleManagerModal(node, editData) {
         status: modal.querySelector("#sns-form-status"),
         deleteCurrent: modal.querySelector("#sns-delete-current"),
     };
+    const managerPanel = modal.querySelector("[data-sns-manager-panel]");
     const managerCategory = modal.querySelector("#sns-manager-category");
     const deleteCategoryButton = modal.querySelector("#sns-delete-category");
+    const cardSizeInput = modal.querySelector("#sns-card-size");
+    const cardSizeValue = modal.querySelector("#sns-card-size-value");
     let editing = null;
     let thumbnailFile = null;
     let thumbnailDirty = false;
@@ -570,7 +626,7 @@ function showStyleManagerModal(node, editData) {
                 createElement("h4", { text: sectionData.title, css: "margin:0;color:#f59e0b;font-size:13px;font-weight:800;" }),
                 createElement("span", { text: String(matchingEntries.length), css: "background:#2a2210;color:#d6a84b;font-size:10px;padding:2px 6px;border-radius:999px;" }),
             );
-            const categoryGrid = createElement("div", { css: "display:grid;grid-template-columns:repeat(auto-fill,96px);gap:8px;align-items:start;" });
+            const categoryGrid = createElement("div", { css: "display:grid;grid-template-columns:repeat(auto-fill,var(--sns-card-size));gap:8px;align-items:start;" });
 
             for (const { category, style } of matchingEntries) {
                 const name = String(style?.name || "");
@@ -578,10 +634,10 @@ function showStyleManagerModal(node, editData) {
                 total += 1;
 
                 const card = createElement("div", {
-                    css: "width:96px;min-width:0;min-height:134px;background:#0b0b0b;border:1px solid #34302a;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;box-sizing:border-box;",
+                    css: "width:var(--sns-card-size);min-width:0;min-height:calc(var(--sns-card-size) + 38px);background:#0b0b0b;border:1px solid #34302a;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;box-sizing:border-box;",
                     title: `${category} / ${name} — click to edit`,
                 });
-                const cover = createThumbnail(style, 96, true);
+                const cover = createThumbnail(style, MAX_CARD_SIZE, true);
                 cover.appendChild(createFavoriteButton(category, name, (error) => setStatus(error.message, true)));
                 card.appendChild(cover);
                 const body = createElement("div", { css: "padding:5px;display:flex;flex:1;flex-direction:column;gap:3px;min-height:38px;" });
@@ -604,6 +660,11 @@ function showStyleManagerModal(node, editData) {
     };
 
     const unsubscribe = styleStore.subscribe(renderManager);
+    const unsubscribeCardSize = cardSizeStore.subscribe((size) => {
+        managerPanel.style.setProperty("--sns-card-size", `${size}px`);
+        cardSizeInput.value = String(size);
+        cardSizeValue.textContent = `${size} px`;
+    });
     const unsubscribeFavorites = styleStore.subscribeFavorites(() => {
         updateFavsOption(managerCategory);
         if (managerCategory.value === FAVORITES_CATEGORY) renderManager(styleStore.data);
@@ -612,6 +673,7 @@ function showStyleManagerModal(node, editData) {
     const close = () => {
         unsubscribe();
         unsubscribeFavorites();
+        unsubscribeCardSize();
         modal.remove();
     };
     modal.querySelector("#sns-close").onclick = close;
@@ -619,6 +681,10 @@ function showStyleManagerModal(node, editData) {
     modal.querySelector("#sns-reset-btn").onclick = resetForm;
     modal.querySelector("#sns-search").oninput = () => renderManager(styleStore.data);
     modal.querySelector("#sns-manager-category").onchange = () => renderManager(styleStore.data);
+    cardSizeInput.value = String(cardSizeStore.value);
+    cardSizeValue.textContent = `${cardSizeStore.value} px`;
+    managerPanel.style.setProperty("--sns-card-size", `${cardSizeStore.value}px`);
+    cardSizeInput.oninput = () => cardSizeStore.set(cardSizeInput.value);
     deleteCategoryButton.onclick = deleteCategory;
     form.categorySelect.onchange = () => {
         if (form.categorySelect.value) form.category.value = form.categorySelect.value;
@@ -737,12 +803,13 @@ function setupStyleNodeWidget(node) {
     container.innerHTML = `
         <div style="background:#1e1c18;padding:6px 10px;border-bottom:1px solid #383328;display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:6px;"><button data-sns="quick-favs" type="button" title="Open Favs" style="background:#2b271f;border:1px solid #5b4a20;color:#facc15;font-size:10px;font-weight:bold;padding:4px 7px;border-radius:6px;cursor:pointer;white-space:nowrap;">★ Favs</button><span style="font-size:10px;font-weight:bold;color:#f59e0b;">CATEGORY:</span><select data-sns="category" style="flex:1;min-width:0;background:#141310;border:1px solid #3d3626;color:#f59e0b;font-size:11px;font-weight:bold;padding:4px 6px;border-radius:6px;outline:none;cursor:pointer;"><option value="All">📁 All Categories</option><option value="Favs">⭐ Favs (0)</option></select><button data-sns="manager" type="button" style="background:#f59e0b;border:none;color:#000;font-size:10px;font-weight:bold;padding:4px 8px;border-radius:6px;cursor:pointer;">⚙️ Manager</button></div>
-            <div style="display:flex;align-items:center;gap:6px;"><input data-sns="search" type="text" placeholder="🔍 Search styles..." style="flex:1;background:#141310;border:1px solid #3d3626;color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;outline:none;"><button data-sns="clear" type="button" style="background:#2b271f;border:1px solid #3d3626;color:#aaa;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer;">Clear All</button></div>
+            <div style="display:grid;grid-template-columns:minmax(100px,28%) minmax(0,1fr) auto;align-items:center;gap:6px;"><input data-sns="search" type="text" placeholder="🔍 Search styles..." style="min-width:0;width:100%;box-sizing:border-box;background:#141310;border:1px solid #3d3626;color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;outline:none;"><div data-sns="selected-list" aria-label="Selected styles" style="height:25px;min-width:0;display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;background:#141310;border:1px solid #3d3626;border-radius:6px;padding:2px 4px;box-sizing:border-box;"></div><button data-sns="clear" type="button" style="background:#2b271f;border:1px solid #3d3626;color:#aaa;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;">Clear All</button></div>
         </div>
         <div data-sns="gallery" style="flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;padding:8px;display:grid;grid-auto-rows:max-content;gap:8px;align-content:start;justify-content:start;width:100%;box-sizing:border-box;"></div>`;
 
     const categorySelect = container.querySelector('[data-sns="category"]');
     const searchInput = container.querySelector('[data-sns="search"]');
+    const selectedList = container.querySelector('[data-sns="selected-list"]');
     const gallery = container.querySelector('[data-sns="gallery"]');
     const managerButton = container.querySelector('[data-sns="manager"]');
     const quickFavsButton = container.querySelector('[data-sns="quick-favs"]');
@@ -759,16 +826,18 @@ function setupStyleNodeWidget(node) {
         const computed = getComputedStyle(gallery);
         const horizontalPadding = parseFloat(computed.paddingLeft || "0") + parseFloat(computed.paddingRight || "0");
         const availableWidth = Math.max(1, gallery.clientWidth - horizontalPadding);
+        const targetWidth = cardSizeStore.value;
+        const minimumWidth = Math.max(MIN_CARD_SIZE * 0.875, Math.round(targetWidth * 0.875));
         let columns = Math.max(
             1,
-            Math.floor((availableWidth + NODE_CARD_GAP) / (NODE_CARD_MIN_WIDTH + NODE_CARD_GAP)),
+            Math.floor((availableWidth + NODE_CARD_GAP) / (minimumWidth + NODE_CARD_GAP)),
         );
         let cardWidth = (availableWidth - NODE_CARD_GAP * (columns - 1)) / columns;
-        while (columns > 1 && cardWidth < NODE_CARD_MIN_WIDTH) {
+        while (columns > 1 && cardWidth < minimumWidth) {
             columns -= 1;
             cardWidth = (availableWidth - NODE_CARD_GAP * (columns - 1)) / columns;
         }
-        cardWidth = Math.min(NODE_CARD_MAX_WIDTH, Math.max(1, Math.floor(cardWidth)));
+        cardWidth = Math.min(targetWidth, Math.max(1, Math.floor(cardWidth)));
         gallery.style.gridTemplateColumns = `repeat(${columns}, minmax(0, ${cardWidth}px))`;
     };
     const galleryResizeObserver = typeof ResizeObserver === "function"
@@ -829,13 +898,67 @@ function setupStyleNodeWidget(node) {
         node.properties.selected_styles = value;
         if (selectionWidget) selectionWidget.value = value;
         setNodeDirty(node);
+        renderSelectionTags();
+        updateSelectionVisuals();
     };
     const selectedKeySet = () => new Set(getSelection().map((item) => selectionKey(item.category, item.name)));
+
+    const renderSelectionTags = () => {
+        const items = getSelection();
+        if (!items.length) {
+            selectedList.replaceChildren(createElement("span", {
+                text: "No styles selected",
+                css: "color:#6b7280;font-size:9px;padding:0 3px;white-space:nowrap;",
+            }));
+            clearButton.disabled = true;
+            clearButton.style.opacity = ".55";
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        items.forEach((item, index) => {
+            const tag = createElement("span", {
+                title: item.category ? `${item.category} / ${item.name}` : item.name,
+                css: "height:19px;max-width:150px;display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;background:#2a2210;border:1px solid #5b4a20;border-radius:5px;padding:0 3px 0 6px;box-sizing:border-box;color:#f3f4f6;font-size:9px;",
+            });
+            const label = createElement("span", {
+                text: item.name,
+                css: "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",
+            });
+            const remove = createElement("button", {
+                text: "×",
+                title: `Remove ${item.name}`,
+                type: "button",
+                css: "width:14px;height:14px;display:flex;align-items:center;justify-content:center;flex:0 0 14px;background:transparent;border:0;color:#f59e0b;font-size:13px;line-height:1;padding:0;border-radius:3px;cursor:pointer;",
+            });
+            remove.setAttribute("aria-label", `Remove ${item.name}`);
+            remove.onpointerdown = (event) => event.stopPropagation();
+            remove.onclick = (event) => {
+                event.stopPropagation();
+                const current = getSelection();
+                current.splice(index, 1);
+                saveSelection(current);
+            };
+            tag.append(label, remove);
+            fragment.appendChild(tag);
+        });
+        selectedList.replaceChildren(fragment);
+        clearButton.disabled = false;
+        clearButton.style.opacity = "1";
+    };
 
     const updateSelectionVisuals = () => {
         const selected = selectedKeySet();
         for (const card of gallery.querySelectorAll("[data-style-key]")) {
-            const active = selected.has(card.dataset.styleKey);
+            let active = selected.has(card.dataset.styleKey);
+            if (!active) {
+                try {
+                    const [, name] = JSON.parse(card.dataset.styleKey);
+                    active = selected.has(selectionKey("", name));
+                } catch (_) {
+                    // Invalid card keys are treated as not selected.
+                }
+            }
             card.style.background = active ? "#2a2210" : "#1a1814";
             card.style.border = active ? "2px solid #f59e0b" : "1px solid #332e24";
             card.querySelector("[data-active-badge]").style.display = active ? "block" : "none";
@@ -886,7 +1009,7 @@ function setupStyleNodeWidget(node) {
                     title: `${category} / ${name}`,
                 });
                 card.dataset.styleKey = key;
-                const cover = createThumbnail(style, 96, true);
+                const cover = createThumbnail(style, MAX_CARD_SIZE, true);
                 const activeBadge = createElement("span", { text: "✓ Active", css: `position:absolute;top:3px;left:3px;background:#f59e0b;color:#000;font-size:9px;font-weight:bold;padding:1px 4px;border-radius:3px;display:${active ? "block" : "none"};` });
                 activeBadge.dataset.activeBadge = "";
                 const editButton = createElement("button", { text: "✏️ Edit", type: "button", css: "position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.85);border:1px solid #aaa;color:#fff;font-size:9px;font-weight:bold;padding:2px 4px;border-radius:4px;cursor:pointer;" });
@@ -902,7 +1025,6 @@ function setupStyleNodeWidget(node) {
                     if (index >= 0) current.splice(index, 1);
                     else current.push({ category, name });
                     saveSelection(current);
-                    updateSelectionVisuals();
                 };
                 editButton.onpointerdown = (event) => event.stopPropagation();
                 editButton.onclick = (event) => {
@@ -921,6 +1043,9 @@ function setupStyleNodeWidget(node) {
         renderGallery(data);
     };
     const unsubscribe = styleStore.subscribe(onStoreUpdate);
+    const unsubscribeCardSize = cardSizeStore.subscribe(() => {
+        syncGalleryColumns();
+    });
     const unsubscribeFavorites = styleStore.subscribeFavorites(() => {
         updateFavsOption(categorySelect);
         if (categorySelect.value === FAVORITES_CATEGORY) renderGallery();
@@ -930,6 +1055,7 @@ function setupStyleNodeWidget(node) {
     node.onRemoved = function () {
         unsubscribe();
         unsubscribeFavorites();
+        unsubscribeCardSize();
         galleryResizeObserver?.disconnect();
         container.remove();
         return originalRemoved?.apply(this, arguments);
@@ -949,7 +1075,6 @@ function setupStyleNodeWidget(node) {
     clearButton.onclick = (event) => {
         event.stopPropagation();
         saveSelection([]);
-        updateSelectionVisuals();
     };
     managerButton.onclick = (event) => {
         event.stopPropagation();
@@ -963,6 +1088,7 @@ function setupStyleNodeWidget(node) {
             gallery.replaceChildren(createElement("div", { text: `Failed to load styles: ${error.message}`, css: "color:#ef4444;font-size:11px;text-align:center;padding:20px;grid-column:1/-1;" }));
         });
     }
+    renderSelectionTags();
     syncHeight();
 }
 

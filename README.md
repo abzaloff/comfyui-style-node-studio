@@ -61,6 +61,8 @@ For an input prompt of `portrait` and a style containing
 - The `CATEGORY` selector filters cards by category.
 - The search field filters styles by name.
 - Clicking a card selects or deselects the style.
+- Selected styles remain visible as removable tags beside the search field,
+  even when browsing another category.
 - The `Edit` button opens the style in the manager.
 - The star in the upper-right corner adds or removes a favorite:
   - `☆` — not a favorite;
@@ -79,7 +81,10 @@ The manager can:
 - delete a category together with all of its styles and local thumbnails;
 - filter the library by category or show only `Favs`;
 - insert `{prompt}` at the current cursor position with `Insert {prompt}`;
-- choose a thumbnail from disk or use the latest ComfyUI-generated image.
+- choose a thumbnail from disk or use the latest ComfyUI-generated image;
+- change the shared gallery card size from `96 px` to `152 px`. The setting is
+  saved in the browser and applies immediately to the manager and every open
+  Style Node Studio node.
 
 When a thumbnail is saved, it is center-cropped to a square, converted to WebP,
 and stored inside the category directory.
