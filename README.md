@@ -63,7 +63,9 @@ For an input prompt of `portrait` and a style containing
 - Clicking a card selects or deselects the style.
 - Selected styles remain visible as removable tags beside the search field,
   even when browsing another category.
-- The `Edit` button opens the style in the manager.
+- The pencil button opens the style in the manager.
+- The camera button replaces the preset thumbnail with the latest
+  ComfyUI-generated image without opening the manager.
 - The star in the upper-right corner adds or removes a favorite:
   - `☆` — not a favorite;
   - `★` — added to favorites.

@@ -330,6 +330,27 @@ async function persistThumbnail(source, category, name) {
     return payload.thumbnail;
 }
 
+async function replaceStyleThumbnail(category, style, source) {
+    const name = String(style?.name || "").trim();
+    if (!name) throw new Error("Style name is required");
+    const thumbnail = await persistThumbnail(source, category, name);
+    await requestJson(`${API_ROOT}/save_style`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            category,
+            original_category: category,
+            original_name: name,
+            style: {
+                name,
+                prompt: String(style?.prompt || ""),
+                negative_prompt: String(style?.negative_prompt || ""),
+                thumbnail,
+            },
+        }),
+    });
+}
+
 function parseSelection(value) {
     if (typeof value !== "string" || !value.trim()) return [];
     const trimmed = value.trim();
@@ -1012,9 +1033,12 @@ function setupStyleNodeWidget(node) {
                 const cover = createThumbnail(style, MAX_CARD_SIZE, true);
                 const activeBadge = createElement("span", { text: "✓ Active", css: `position:absolute;top:3px;left:3px;background:#f59e0b;color:#000;font-size:9px;font-weight:bold;padding:1px 4px;border-radius:3px;display:${active ? "block" : "none"};` });
                 activeBadge.dataset.activeBadge = "";
-                const editButton = createElement("button", { text: "✏️ Edit", type: "button", css: "position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.85);border:1px solid #aaa;color:#fff;font-size:9px;font-weight:bold;padding:2px 4px;border-radius:4px;cursor:pointer;" });
+                const editButton = createElement("button", { text: "✏️", title: `Edit ${name}`, type: "button", css: "position:absolute;bottom:3px;left:3px;width:19px;height:18px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);border:1px solid #aaa;color:#fff;font-size:10px;line-height:1;padding:0;border-radius:4px;cursor:pointer;" });
+                editButton.setAttribute("aria-label", `Edit ${name}`);
+                const quickThumbnailButton = createElement("button", { text: "📷", title: `Use last generated image for ${name}`, type: "button", css: "position:absolute;bottom:24px;left:3px;width:19px;height:18px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);border:1px solid #a87824;color:#f59e0b;font-size:10px;line-height:1;padding:0;border-radius:4px;cursor:pointer;" });
+                quickThumbnailButton.setAttribute("aria-label", `Use last generated image for ${name}`);
                 const favoriteButton = createFavoriteButton(category, name, (error) => console.error("Cannot update favorite:", error));
-                cover.append(activeBadge, favoriteButton, editButton);
+                cover.append(activeBadge, favoriteButton, quickThumbnailButton, editButton);
                 const nameElement = createElement("div", { text: name, css: `padding:3px 5px;font-size:9px;font-weight:bold;color:${active ? "#f59e0b" : "#f3f4f6"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;` });
                 nameElement.dataset.styleName = "";
                 card.append(cover, nameElement);
@@ -1030,6 +1054,29 @@ function setupStyleNodeWidget(node) {
                 editButton.onclick = (event) => {
                     event.stopPropagation();
                     showStyleManagerModal(node, { cat: category, style });
+                };
+                quickThumbnailButton.onpointerdown = (event) => event.stopPropagation();
+                quickThumbnailButton.onclick = async (event) => {
+                    event.stopPropagation();
+                    const source = getLastGeneratedImage();
+                    if (!source) {
+                        alert("Generate an image first");
+                        return;
+                    }
+                    if (!confirm(`Replace the preview for '${name}' with the last generated image?`)) {
+                        return;
+                    }
+                    const previousIcon = quickThumbnailButton.textContent;
+                    quickThumbnailButton.disabled = true;
+                    quickThumbnailButton.textContent = "…";
+                    try {
+                        await replaceStyleThumbnail(category, style, source);
+                        await styleStore.refresh();
+                    } catch (error) {
+                        alert(`Cannot update preview: ${error.message}`);
+                        quickThumbnailButton.disabled = false;
+                        quickThumbnailButton.textContent = previousIcon;
+                    }
                 };
                 fragment.appendChild(card);
         }
