@@ -5,6 +5,8 @@ combining reusable positive and negative prompt presets. It does not generate
 images by itself. The node receives prompt strings, applies the selected styles,
 and returns the resulting `positive` and `negative` strings.
 
+![Style Node Studio interface](assets/style-node-studio.png)
+
 ## Installation
 
 1. Copy the project directory to:
