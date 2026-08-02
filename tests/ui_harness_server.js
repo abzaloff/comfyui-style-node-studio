@@ -67,12 +67,27 @@ const server = http.createServer(async (request, response) => {
                         { name: "category", value: "All Categories" },
                         { name: "selected_styles", value: "" },
                     ];
+                    let galleryWidget = null;
                     node.addDOMWidget = (name, type, element, options) => {
                         host.appendChild(element);
-                        return { name, type, element, options, last_y: 110 };
+                        galleryWidget = { name, type, element, options, last_y: 110 };
+                        return galleryWidget;
                     };
                     node.setDirtyCanvas = () => {};
                     node.onNodeCreated();
+                    const restoreMode = new URLSearchParams(location.search).get("restore");
+                    if (restoreMode) {
+                        const restoredValue = JSON.stringify([
+                            { category: "3D Render", name: "Pixar Animation 3D" },
+                        ]);
+                        if (restoreMode === "set-value") {
+                            galleryWidget.options.setValue(restoredValue);
+                        } else if (restoreMode === "configure") {
+                            node.properties.selected_styles = restoredValue;
+                            node.widgets.find((widget) => widget.name === "selected_styles").value = restoredValue;
+                            node.onConfigure?.({});
+                        }
+                    }
                 } else {
                     window.showStyleManagerModal({});
                 }

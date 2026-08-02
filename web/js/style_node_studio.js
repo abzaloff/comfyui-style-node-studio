@@ -871,12 +871,18 @@ function setupStyleNodeWidget(node) {
         container.addEventListener(eventName, stopInterference, { passive: true });
     }
 
+    let refreshSelectionUi = () => {};
     let domWidget;
     const hasNativeDomWidget = typeof node.addDOMWidget === "function";
     if (hasNativeDomWidget) {
         domWidget = node.addDOMWidget("style_gallery_widget", "dom", container, {
             getValue: () => node.properties.selected_styles || "",
-            setValue: (value) => { node.properties.selected_styles = value || ""; },
+            setValue: (value) => {
+                const restoredValue = typeof value === "string" ? value : "";
+                node.properties.selected_styles = restoredValue;
+                if (selectionWidget) selectionWidget.value = restoredValue;
+                queueMicrotask(() => refreshSelectionUi());
+            },
             getMinHeight: () => MIN_GALLERY_HEIGHT,
             serialize: false,
         });
@@ -985,6 +991,32 @@ function setupStyleNodeWidget(node) {
             card.querySelector("[data-active-badge]").style.display = active ? "block" : "none";
             card.querySelector("[data-style-name]").style.color = active ? "#f59e0b" : "#f3f4f6";
         }
+    };
+
+    refreshSelectionUi = () => {
+        renderSelectionTags();
+        updateSelectionVisuals();
+    };
+
+    const syncRestoredSelection = () => {
+        const propertyValue = typeof node.properties?.selected_styles === "string"
+            ? node.properties.selected_styles
+            : "";
+        const widgetValue = typeof selectionWidget?.value === "string"
+            ? selectionWidget.value
+            : "";
+        const restoredValue = propertyValue || widgetValue;
+        node.properties ||= {};
+        node.properties.selected_styles = restoredValue;
+        if (selectionWidget) selectionWidget.value = restoredValue;
+        refreshSelectionUi();
+    };
+
+    const originalConfigure = node.onConfigure;
+    node.onConfigure = function () {
+        const result = originalConfigure?.apply(this, arguments);
+        requestAnimationFrame(syncRestoredSelection);
+        return result;
     };
 
     const populateCategories = (data) => {
@@ -1135,7 +1167,7 @@ function setupStyleNodeWidget(node) {
             gallery.replaceChildren(createElement("div", { text: `Failed to load styles: ${error.message}`, css: "color:#ef4444;font-size:11px;text-align:center;padding:20px;grid-column:1/-1;" }));
         });
     }
-    renderSelectionTags();
+    syncRestoredSelection();
     syncHeight();
 }
 
