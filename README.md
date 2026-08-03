@@ -84,7 +84,7 @@ The manager can:
 - filter the library by category or show only `Favs`;
 - insert `{prompt}` at the current cursor position with `Insert {prompt}`;
 - choose a thumbnail from disk or use the latest ComfyUI-generated image;
-- change the shared gallery card size from `96 px` to `152 px`. The setting is
+- change the shared gallery card size from `96 px` to `320 px`. The setting is
   saved in the browser and applies immediately to the manager and every open
   Style Node Studio node.
 

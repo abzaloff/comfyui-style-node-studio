@@ -8,7 +8,7 @@ const FAVORITES_CATEGORY = "Favs";
 const MIN_GALLERY_HEIGHT = 280;
 const DEFAULT_CARD_SIZE = 96;
 const MIN_CARD_SIZE = 96;
-const MAX_CARD_SIZE = 152;
+const MAX_CARD_SIZE = 320;
 const NODE_CARD_GAP = 6;
 
 function clampCardSize(value) {
@@ -476,7 +476,7 @@ function showStyleManagerModal(node, editData) {
                     <input id="sns-file-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"><button id="sns-file-image" type="button" style="background:#262626;border:1px solid #3d3d3d;color:#e5e7eb;padding:7px;border-radius:6px;font-size:11px;cursor:pointer;">Choose image</button><button id="sns-last-image" type="button" style="background:#262626;border:1px solid #3d3d3d;color:#e5e7eb;padding:7px;border-radius:6px;font-size:11px;cursor:pointer;">Use last generated</button></div>
                     <button id="sns-save" type="button" style="background:#f59e0b;color:#000;font-weight:bold;border:none;padding:10px;border-radius:6px;font-size:12px;cursor:pointer;">Save style</button>
-                    <label style="background:#171717;border:1px solid #2f2f2f;border-radius:7px;padding:8px 10px;font-size:11px;color:#9ca3af;font-weight:600;"><span style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><span>Card size</span><output id="sns-card-size-value" style="color:#f59e0b;font-variant-numeric:tabular-nums;">96 px</output></span><input id="sns-card-size" type="range" min="96" max="152" step="1" style="display:block;width:100%;margin:0;accent-color:#f59e0b;cursor:pointer;"></label>
+                    <label style="background:#171717;border:1px solid #2f2f2f;border-radius:7px;padding:8px 10px;font-size:11px;color:#9ca3af;font-weight:600;"><span style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><span>Card size</span><output id="sns-card-size-value" style="color:#f59e0b;font-variant-numeric:tabular-nums;">96 px</output></span><input id="sns-card-size" type="range" min="96" max="320" step="1" style="display:block;width:100%;margin:0;accent-color:#f59e0b;cursor:pointer;"></label>
                     <button id="sns-delete-current" type="button" style="display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#ef4444;padding:8px;border-radius:6px;font-size:11px;cursor:pointer;">Delete this preset</button>
                     <div id="sns-form-status" role="status" style="min-height:16px;font-size:11px;color:#9ca3af;"></div>
                 </div>
