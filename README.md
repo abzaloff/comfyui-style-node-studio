@@ -59,7 +59,9 @@ For an input prompt of `portrait` and a style containing
 ## Style gallery
 
 - The `CATEGORY` selector filters cards by category.
-- The search field filters styles by name.
+- The search field filters styles by name across all categories, regardless of
+  the category currently selected. Use the `×` button inside the field to clear
+  the search and return to the selected category.
 - Clicking a card selects or deselects the style.
 - Selected styles remain visible as removable tags beside the search field,
   even when browsing another category.

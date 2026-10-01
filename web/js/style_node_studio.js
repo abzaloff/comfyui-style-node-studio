@@ -481,7 +481,7 @@ function showStyleManagerModal(node, editData) {
                     <div id="sns-form-status" role="status" style="min-height:16px;font-size:11px;color:#9ca3af;"></div>
                 </div>
                 <div style="background:#141414;padding:20px;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;">
-                    <div style="display:grid;grid-template-columns:minmax(150px,200px) auto minmax(140px,1fr) auto;align-items:center;margin-bottom:14px;gap:8px;"><select id="sns-manager-category" style="min-width:0;background:#0b0b0b;border:1px solid #2a2a2a;color:#f59e0b;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;"><option value="All">📁 All Categories</option></select><button id="sns-delete-category" type="button" disabled style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);color:#ef4444;padding:8px 10px;border-radius:8px;font-size:11px;white-space:nowrap;cursor:not-allowed;opacity:.45;">🗑 Delete category</button><input id="sns-search" type="text" placeholder="🔍 Search styles..." style="min-width:0;background:#0b0b0b;border:1px solid #2a2a2a;color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;"><span id="sns-count" style="font-size:12px;color:#9ca3af;white-space:nowrap;"></span></div>
+                    <div style="display:grid;grid-template-columns:minmax(150px,200px) auto minmax(140px,1fr) auto;align-items:center;margin-bottom:14px;gap:8px;"><select id="sns-manager-category" style="min-width:0;background:#0b0b0b;border:1px solid #2a2a2a;color:#f59e0b;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;"><option value="All">📁 All Categories</option></select><button id="sns-delete-category" type="button" disabled style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);color:#ef4444;padding:8px 10px;border-radius:8px;font-size:11px;white-space:nowrap;cursor:not-allowed;opacity:.45;">🗑 Delete category</button><div style="position:relative;min-width:0;"><input id="sns-search" type="text" placeholder="🔍 Search styles..." style="width:100%;min-width:0;box-sizing:border-box;background:#0b0b0b;border:1px solid #2a2a2a;color:#fff;padding:8px 30px 8px 12px;border-radius:8px;font-size:12px;"><button id="sns-search-clear" type="button" title="Clear search" aria-label="Clear search" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);width:20px;height:20px;align-items:center;justify-content:center;background:transparent;border:0;color:#9ca3af;font-size:16px;line-height:1;padding:0;cursor:pointer;">×</button></div><span id="sns-count" style="font-size:12px;color:#9ca3af;white-space:nowrap;"></span></div>
                     <div id="sns-grid" style="flex:1;min-height:0;overflow-y:auto;display:block;padding-right:4px;"></div>
                 </div>
             </div>
@@ -502,6 +502,8 @@ function showStyleManagerModal(node, editData) {
     const managerPanel = modal.querySelector("[data-sns-manager-panel]");
     const managerCategory = modal.querySelector("#sns-manager-category");
     const deleteCategoryButton = modal.querySelector("#sns-delete-category");
+    const managerSearchInput = modal.querySelector("#sns-search");
+    const managerSearchClear = modal.querySelector("#sns-search-clear");
     const cardSizeInput = modal.querySelector("#sns-card-size");
     const cardSizeValue = modal.querySelector("#sns-card-size-value");
     let editing = null;
@@ -594,7 +596,7 @@ function showStyleManagerModal(node, editData) {
         const grid = modal.querySelector("#sns-grid");
         const count = modal.querySelector("#sns-count");
         const categoryList = modal.querySelector("#sns-category-list");
-        const query = (modal.querySelector("#sns-search")?.value || "").toLowerCase();
+        const query = (managerSearchInput.value || "").trim().toLowerCase();
         const fragment = document.createDocumentFragment();
         let total = 0;
 
@@ -620,10 +622,11 @@ function showStyleManagerModal(node, editData) {
         deleteCategoryButton.style.opacity = canDeleteCategory ? "1" : ".45";
         form.categorySelect.value = categories.includes(form.category.value) ? form.category.value : "";
 
-        const sections = managerCategory.value === FAVORITES_CATEGORY
+        const searchAllCategories = Boolean(query);
+        const sections = !searchAllCategories && managerCategory.value === FAVORITES_CATEGORY
             ? [{ title: FAVORITES_CATEGORY, entries: favoriteStyleEntries(data) }]
             : categories
-                .filter((category) => managerCategory.value === "All" || managerCategory.value === category)
+                .filter((category) => searchAllCategories || managerCategory.value === "All" || managerCategory.value === category)
                 .map((category) => ({
                     title: category,
                     entries: Array.isArray(data[category])
@@ -700,7 +703,19 @@ function showStyleManagerModal(node, editData) {
     modal.querySelector("#sns-close").onclick = close;
     modal.onclick = (event) => { if (event.target === modal) close(); };
     modal.querySelector("#sns-reset-btn").onclick = resetForm;
-    modal.querySelector("#sns-search").oninput = () => renderManager(styleStore.data);
+    const updateManagerSearchClear = () => {
+        managerSearchClear.style.display = managerSearchInput.value ? "flex" : "none";
+    };
+    managerSearchInput.oninput = () => {
+        updateManagerSearchClear();
+        renderManager(styleStore.data);
+    };
+    managerSearchClear.onclick = () => {
+        managerSearchInput.value = "";
+        updateManagerSearchClear();
+        managerSearchInput.focus();
+        renderManager(styleStore.data);
+    };
     modal.querySelector("#sns-manager-category").onchange = () => renderManager(styleStore.data);
     cardSizeInput.value = String(cardSizeStore.value);
     cardSizeValue.textContent = `${cardSizeStore.value} px`;
@@ -824,12 +839,13 @@ function setupStyleNodeWidget(node) {
     container.innerHTML = `
         <div style="background:#1e1c18;padding:6px 10px;border-bottom:1px solid #383328;display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:6px;"><button data-sns="quick-favs" type="button" title="Open Favs" style="background:#2b271f;border:1px solid #5b4a20;color:#facc15;font-size:10px;font-weight:bold;padding:4px 7px;border-radius:6px;cursor:pointer;white-space:nowrap;">★ Favs</button><span style="font-size:10px;font-weight:bold;color:#f59e0b;">CATEGORY:</span><select data-sns="category" style="flex:1;min-width:0;background:#141310;border:1px solid #3d3626;color:#f59e0b;font-size:11px;font-weight:bold;padding:4px 6px;border-radius:6px;outline:none;cursor:pointer;"><option value="All">📁 All Categories</option><option value="Favs">⭐ Favs (0)</option></select><button data-sns="manager" type="button" style="background:#f59e0b;border:none;color:#000;font-size:10px;font-weight:bold;padding:4px 8px;border-radius:6px;cursor:pointer;">⚙️ Manager</button></div>
-            <div style="display:grid;grid-template-columns:minmax(100px,28%) minmax(0,1fr) auto;align-items:center;gap:6px;"><input data-sns="search" type="text" placeholder="🔍 Search styles..." style="min-width:0;width:100%;box-sizing:border-box;background:#141310;border:1px solid #3d3626;color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;outline:none;"><div data-sns="selected-list" aria-label="Selected styles" style="height:25px;min-width:0;display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;background:#141310;border:1px solid #3d3626;border-radius:6px;padding:2px 4px;box-sizing:border-box;"></div><button data-sns="clear" type="button" style="background:#2b271f;border:1px solid #3d3626;color:#aaa;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;">Clear All</button></div>
+            <div style="display:grid;grid-template-columns:minmax(100px,28%) minmax(0,1fr) auto;align-items:center;gap:6px;"><div style="position:relative;min-width:0;"><input data-sns="search" type="text" placeholder="🔍 Search styles..." style="min-width:0;width:100%;box-sizing:border-box;background:#141310;border:1px solid #3d3626;color:#fff;font-size:11px;padding:4px 24px 4px 8px;border-radius:6px;outline:none;"><button data-sns="search-clear" type="button" title="Clear search" aria-label="Clear search" style="display:none;position:absolute;right:4px;top:50%;transform:translateY(-50%);width:17px;height:17px;align-items:center;justify-content:center;background:transparent;border:0;color:#a89d8a;font-size:14px;line-height:1;padding:0;cursor:pointer;">×</button></div><div data-sns="selected-list" aria-label="Selected styles" style="height:25px;min-width:0;display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;background:#141310;border:1px solid #3d3626;border-radius:6px;padding:2px 4px;box-sizing:border-box;"></div><button data-sns="clear" type="button" style="background:#2b271f;border:1px solid #3d3626;color:#aaa;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;">Clear All</button></div>
         </div>
         <div data-sns="gallery" style="flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;padding:8px;display:grid;grid-auto-rows:max-content;gap:8px;align-content:start;justify-content:start;width:100%;box-sizing:border-box;"></div>`;
 
     const categorySelect = container.querySelector('[data-sns="category"]');
     const searchInput = container.querySelector('[data-sns="search"]');
+    const searchClearButton = container.querySelector('[data-sns="search-clear"]');
     const selectedList = container.querySelector('[data-sns="selected-list"]');
     const gallery = container.querySelector('[data-sns="gallery"]');
     const managerButton = container.querySelector('[data-sns="manager"]');
@@ -1034,17 +1050,17 @@ function setupStyleNodeWidget(node) {
     };
 
     const renderGallery = (data = styleStore.data) => {
-        const query = searchInput.value.toLowerCase();
+        const query = searchInput.value.trim().toLowerCase();
         const selectedCategory = categorySelect.value;
         const selected = selectedKeySet();
         const fragment = document.createDocumentFragment();
         let total = 0;
 
-        const entries = selectedCategory === FAVORITES_CATEGORY
+        const entries = !query && selectedCategory === FAVORITES_CATEGORY
             ? favoriteStyleEntries(data)
             : Object.keys(data || {})
                 .sort((left, right) => left.localeCompare(right))
-                .filter((category) => selectedCategory === "All" || selectedCategory === category)
+                .filter((category) => query || selectedCategory === "All" || selectedCategory === category)
                 .flatMap((category) => Array.isArray(data[category])
                     ? data[category].map((style) => ({ category, style }))
                     : []);
@@ -1144,7 +1160,20 @@ function setupStyleNodeWidget(node) {
         updateQuickFavsButton();
         renderGallery();
     };
-    searchInput.oninput = () => renderGallery();
+    const updateSearchClearButton = () => {
+        searchClearButton.style.display = searchInput.value ? "flex" : "none";
+    };
+    searchInput.oninput = () => {
+        updateSearchClearButton();
+        renderGallery();
+    };
+    searchClearButton.onclick = (event) => {
+        event.stopPropagation();
+        searchInput.value = "";
+        updateSearchClearButton();
+        searchInput.focus();
+        renderGallery();
+    };
     quickFavsButton.onclick = (event) => {
         event.stopPropagation();
         categorySelect.value = FAVORITES_CATEGORY;
