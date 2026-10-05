@@ -843,22 +843,26 @@ function setupStyleNodeWidget(node) {
     });
     container.innerHTML = `
         <div style="background:#1e1c18;padding:6px 10px;border-bottom:1px solid #383328;display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-            <div style="display:flex;align-items:center;gap:6px;"><button data-sns="quick-favs" type="button" title="Open Favs" style="background:#2b271f;border:1px solid #5b4a20;color:#facc15;font-size:10px;font-weight:bold;padding:4px 7px;border-radius:6px;cursor:pointer;white-space:nowrap;">★ Favs</button><span style="font-size:10px;font-weight:bold;color:#f59e0b;">CATEGORY:</span><select data-sns="category" style="flex:1;min-width:0;background:#141310;border:1px solid #3d3626;color:#f59e0b;font-size:11px;font-weight:bold;padding:4px 6px;border-radius:6px;outline:none;cursor:pointer;"><option value="All">📁 All Categories</option><option value="Favs">⭐ Favs (0)</option></select><button data-sns="manager" type="button" style="background:#f59e0b;border:none;color:#000;font-size:10px;font-weight:bold;padding:4px 8px;border-radius:6px;cursor:pointer;">⚙️ Manager</button></div>
-            <div style="display:grid;grid-template-columns:minmax(100px,28%) minmax(0,1fr) auto;align-items:center;gap:6px;"><div style="position:relative;min-width:0;"><input data-sns="search" type="text" placeholder="🔍 Search styles..." style="min-width:0;width:100%;box-sizing:border-box;background:#141310;border:1px solid #3d3626;color:#fff;font-size:11px;padding:4px 24px 4px 8px;border-radius:6px;outline:none;"><button data-sns="search-clear" type="button" title="Clear search" aria-label="Clear search" style="display:none;position:absolute;right:4px;top:50%;transform:translateY(-50%);width:17px;height:17px;align-items:center;justify-content:center;background:transparent;border:0;color:#a89d8a;font-size:14px;line-height:1;padding:0;cursor:pointer;">×</button></div><div data-sns="selected-list" aria-label="Selected styles" style="height:25px;min-width:0;display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;background:#141310;border:1px solid #3d3626;border-radius:6px;padding:2px 4px;box-sizing:border-box;"></div><button data-sns="clear" type="button" style="background:#2b271f;border:1px solid #3d3626;color:#aaa;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;">Clear All</button></div>
+            <div style="display:grid;grid-template-columns:clamp(93px,calc(20% - 18px),158px) minmax(0,1fr) auto;align-items:center;gap:6px;"><div style="position:relative;min-width:0;"><input data-sns="search" type="text" placeholder="🔍 Search styles..." style="min-width:0;width:100%;box-sizing:border-box;background:#141310;border:1px solid #3d3626;color:#fff;font-size:11px;padding:4px 24px 4px 8px;border-radius:6px;outline:none;"><button data-sns="search-clear" type="button" title="Clear search" aria-label="Clear search" style="display:none;position:absolute;right:4px;top:50%;transform:translateY(-50%);width:17px;height:17px;align-items:center;justify-content:center;background:transparent;border:0;color:#a89d8a;font-size:14px;line-height:1;padding:0;cursor:pointer;">×</button></div><div data-sns="selected-list" aria-label="Selected styles" style="height:25px;min-width:0;display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;background:#141310;border:1px solid #3d3626;border-radius:6px;padding:2px 4px;box-sizing:border-box;"></div><div style="display:flex;align-items:center;gap:4px;"><button data-sns="toggle-all" type="button" title="Disable all selected styles" aria-label="Toggle all selected styles" style="position:relative;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 22px;background:#2b271f;border:1px solid #3d3626;color:#f3f4f6;font-size:18px;line-height:1;padding:0;border-radius:6px;cursor:pointer;">◎<span data-sns="toggle-all-slash" style="display:none;position:absolute;width:17px;height:2px;background:currentColor;transform:rotate(-45deg);pointer-events:none;"></span></button><button data-sns="clear" type="button" style="background:#2b271f;border:1px solid #3d3626;color:#aaa;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;">Clear All</button></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><button data-sns="quick-favs" type="button" title="Open Favs" style="background:#2b271f;border:1px solid #5b4a20;color:#facc15;font-size:10px;font-weight:bold;padding:4px 7px;border-radius:6px;cursor:pointer;white-space:nowrap;">★ Favs</button><button data-sns="manager" type="button" style="background:#f59e0b;border:none;color:#000;font-size:10px;font-weight:bold;padding:4px 8px;border-radius:6px;cursor:pointer;">⚙️ Manager</button></div>
         </div>
-        <div data-sns="gallery" style="flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;padding:8px;display:grid;grid-auto-rows:max-content;gap:8px;align-content:start;justify-content:start;width:100%;box-sizing:border-box;"></div>`;
+        <div style="flex:1;min-height:0;display:flex;overflow:hidden;"><div data-sns="categories" aria-label="Style categories" style="width:clamp(115px,20%,180px);flex:0 0 clamp(115px,20%,180px);min-height:0;overflow-y:auto;scrollbar-width:thin;background:#171510;border-right:1px solid #383328;padding:7px 5px;box-sizing:border-box;display:flex;flex-direction:column;gap:3px;"></div><div data-sns="gallery" style="flex:1;min-width:0;min-height:0;overflow-y:auto;scrollbar-gutter:stable;padding:8px;display:grid;grid-auto-rows:max-content;gap:8px;align-content:start;justify-content:start;box-sizing:border-box;"></div></div>`;
 
-    const categorySelect = container.querySelector('[data-sns="category"]');
+    const categoryList = container.querySelector('[data-sns="categories"]');
     const searchInput = container.querySelector('[data-sns="search"]');
     const searchClearButton = container.querySelector('[data-sns="search-clear"]');
     const selectedList = container.querySelector('[data-sns="selected-list"]');
     const gallery = container.querySelector('[data-sns="gallery"]');
     const managerButton = container.querySelector('[data-sns="manager"]');
     const quickFavsButton = container.querySelector('[data-sns="quick-favs"]');
+    const toggleAllButton = container.querySelector('[data-sns="toggle-all"]');
+    const toggleAllSlash = container.querySelector('[data-sns="toggle-all-slash"]');
     const clearButton = container.querySelector('[data-sns="clear"]');
+    let currentCategory = "All";
 
     const updateQuickFavsButton = () => {
-        const active = categorySelect.value === FAVORITES_CATEGORY;
+        const active = currentCategory === FAVORITES_CATEGORY;
+        quickFavsButton.textContent = `★ Favs (${styleStore.favorites.size})`;
         quickFavsButton.style.background = active ? "#f59e0b" : "#2b271f";
         quickFavsButton.style.borderColor = active ? "#fbbf24" : "#5b4a20";
         quickFavsButton.style.color = active ? "#111" : "#facc15";
@@ -965,9 +969,19 @@ function setupStyleNodeWidget(node) {
         updateSelectionVisuals();
     };
     const selectedKeySet = () => new Set(getSelection().map((item) => selectionKey(item.category, item.name)));
+    const updateToggleAllButton = (items) => {
+        const anyEnabled = items.some((item) => !disabledStyleKeys.has(selectionKey(item.category, item.name)));
+        const allEnabled = items.every((item) => !disabledStyleKeys.has(selectionKey(item.category, item.name)));
+        toggleAllButton.disabled = items.length === 0;
+        toggleAllButton.style.opacity = items.length ? "1" : ".55";
+        toggleAllButton.title = anyEnabled ? "Disable all selected styles" : "Enable all selected styles";
+        toggleAllButton.setAttribute("aria-label", toggleAllButton.title);
+        toggleAllSlash.style.display = allEnabled ? "none" : "block";
+    };
 
     const renderSelectionTags = () => {
         const items = getSelection();
+        updateToggleAllButton(items);
         if (!items.length) {
             selectedList.replaceChildren(createElement("span", {
                 text: "No styles selected",
@@ -1074,23 +1088,45 @@ function setupStyleNodeWidget(node) {
         return result;
     };
 
-    const populateCategories = (data) => {
-        const current = categorySelect.value;
-        categorySelect.replaceChildren(
-            new Option("📁 All Categories", "All"),
-            new Option(`⭐ ${FAVORITES_CATEGORY} (${styleStore.favorites.size})`, FAVORITES_CATEGORY),
-        );
-        for (const category of Object.keys(data || {}).sort((left, right) => left.localeCompare(right))) {
-            const styles = data[category];
-            categorySelect.appendChild(new Option(`📁 ${category} (${Array.isArray(styles) ? styles.length : 0})`, category));
+    const renderCategoryList = (data = styleStore.data) => {
+        const scrollTop = categoryList.scrollTop;
+        const categories = Object.keys(data || {}).sort((left, right) => left.localeCompare(right));
+        if (currentCategory !== "All" && currentCategory !== FAVORITES_CATEGORY && !categories.includes(currentCategory)) {
+            currentCategory = "All";
         }
-        categorySelect.value = [...categorySelect.options].some((option) => option.value === current) ? current : "All";
+        const entries = [{ value: "All", label: "All Categories" }, ...categories.map((category) => ({
+            value: category,
+            label: category,
+        }))];
+        const fragment = document.createDocumentFragment();
+        for (const entry of entries) {
+            const active = currentCategory === entry.value;
+            const count = entry.value === "All"
+                ? categories.reduce((sum, category) => sum + (Array.isArray(data[category]) ? data[category].length : 0), 0)
+                : Array.isArray(data[entry.value]) ? data[entry.value].length : 0;
+            const button = createElement("button", {
+                text: `📁 ${entry.label} (${count})`,
+                type: "button",
+                title: entry.label,
+                css: `width:100%;min-height:25px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 6px;border-radius:5px;border:1px solid ${active ? "#a36a12" : "transparent"};background:${active ? "#3a2b12" : "transparent"};color:${active ? "#fbbf24" : "#c9c3b7"};font-size:10px;font-weight:${active ? "700" : "400"};cursor:pointer;flex:0 0 auto;`,
+            });
+            button.setAttribute("aria-pressed", String(active));
+            button.onclick = (event) => {
+                event.stopPropagation();
+                currentCategory = entry.value;
+                renderCategoryList();
+                renderGallery();
+            };
+            fragment.appendChild(button);
+        }
+        categoryList.replaceChildren(fragment);
+        categoryList.scrollTop = scrollTop;
         updateQuickFavsButton();
     };
 
     const renderGallery = (data = styleStore.data) => {
         const query = searchInput.value.trim().toLowerCase();
-        const selectedCategory = categorySelect.value;
+        const selectedCategory = currentCategory;
         const selected = selectedKeySet();
         const fragment = document.createDocumentFragment();
         let total = 0;
@@ -1173,7 +1209,7 @@ function setupStyleNodeWidget(node) {
     };
 
     const onStoreUpdate = (data) => {
-        populateCategories(data);
+        renderCategoryList(data);
         renderGallery(data);
     };
     const unsubscribe = styleStore.subscribe(onStoreUpdate);
@@ -1181,8 +1217,8 @@ function setupStyleNodeWidget(node) {
         syncGalleryColumns();
     });
     const unsubscribeFavorites = styleStore.subscribeFavorites(() => {
-        updateFavsOption(categorySelect);
-        if (categorySelect.value === FAVORITES_CATEGORY) renderGallery();
+        updateQuickFavsButton();
+        if (currentCategory === FAVORITES_CATEGORY) renderGallery();
         else refreshFavoriteButtons(gallery);
     });
     const originalRemoved = node.onRemoved;
@@ -1195,10 +1231,6 @@ function setupStyleNodeWidget(node) {
         return originalRemoved?.apply(this, arguments);
     };
 
-    categorySelect.onchange = () => {
-        updateQuickFavsButton();
-        renderGallery();
-    };
     const updateSearchClearButton = () => {
         searchClearButton.style.display = searchInput.value ? "flex" : "none";
     };
@@ -1215,19 +1247,34 @@ function setupStyleNodeWidget(node) {
     };
     quickFavsButton.onclick = (event) => {
         event.stopPropagation();
-        categorySelect.value = FAVORITES_CATEGORY;
-        updateQuickFavsButton();
+        currentCategory = FAVORITES_CATEGORY;
+        renderCategoryList();
         renderGallery();
     };
     clearButton.onclick = (event) => {
         event.stopPropagation();
         saveSelection([]);
     };
+    toggleAllButton.onclick = (event) => {
+        event.stopPropagation();
+        const items = getSelection();
+        if (!items.length) return;
+        const anyEnabled = items.some((item) => !disabledStyleKeys.has(selectionKey(item.category, item.name)));
+        if (anyEnabled) {
+            for (const item of items) disabledStyleKeys.add(selectionKey(item.category, item.name));
+        } else {
+            disabledStyleKeys.clear();
+        }
+        syncExecutionSelection();
+        setNodeDirty(node);
+        renderSelectionTags();
+    };
     managerButton.onclick = (event) => {
         event.stopPropagation();
         showStyleManagerModal(node);
     };
 
+    renderCategoryList();
     if (styleStore.loaded) onStoreUpdate(styleStore.data);
     else {
         renderGallery();

@@ -58,13 +58,16 @@ For an input prompt of `portrait` and a style containing
 
 ## Style gallery
 
-- The `CATEGORY` selector filters cards by category.
+- The category list stays open to the left of the style cards. Click a category
+  to filter the gallery, or choose `All Categories` to show everything.
 - The search field filters styles by name across all categories, regardless of
   the category currently selected. Use the `×` button inside the field to clear
   the search and return to the selected category.
 - Clicking a card selects or deselects the style.
 - Selected styles remain visible as removable tags beside the search field,
   even when browsing another category.
+- The `◎` button beside `Clear All` temporarily disables all selected styles
+  when any are active, or enables all of them when none are active.
 - The pencil button opens the style in the manager.
 - The camera button replaces the preset thumbnail with the latest
   ComfyUI-generated image without opening the manager.
