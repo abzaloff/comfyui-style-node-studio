@@ -772,6 +772,11 @@ function showStyleManagerModal(node, editData) {
             setStatus("Style name is required", true);
             return;
         }
+        const updatingSameStyle = editing?.category === category && editing?.name === name;
+        if (!updatingSameStyle && styleStore.data[category]?.some((style) => style.name === name)) {
+            setStatus("A style with this name already exists in the category", true);
+            return;
+        }
         try {
             setStatus("Saving...");
             const identityChanged = Boolean(
@@ -888,6 +893,8 @@ function setupStyleNodeWidget(node) {
     }
 
     let refreshSelectionUi = () => {};
+    let syncExecutionSelection = () => {};
+    const disabledStyleKeys = new Set();
     let domWidget;
     const hasNativeDomWidget = typeof node.addDOMWidget === "function";
     if (hasNativeDomWidget) {
@@ -896,8 +903,11 @@ function setupStyleNodeWidget(node) {
             setValue: (value) => {
                 const restoredValue = typeof value === "string" ? value : "";
                 node.properties.selected_styles = restoredValue;
-                if (selectionWidget) selectionWidget.value = restoredValue;
-                queueMicrotask(() => refreshSelectionUi());
+                disabledStyleKeys.clear();
+                queueMicrotask(() => {
+                    syncExecutionSelection();
+                    refreshSelectionUi();
+                });
             },
             getMinHeight: () => MIN_GALLERY_HEIGHT,
             serialize: false,
@@ -936,10 +946,20 @@ function setupStyleNodeWidget(node) {
     };
 
     const getSelection = () => parseSelection(node.properties.selected_styles || selectionWidget?.value || "");
+    syncExecutionSelection = () => {
+        if (!selectionWidget) return;
+        selectionWidget.value = JSON.stringify(getSelection().filter(
+            (item) => !disabledStyleKeys.has(selectionKey(item.category, item.name))
+        ));
+    };
     const saveSelection = (items) => {
         const value = JSON.stringify(items);
         node.properties.selected_styles = value;
-        if (selectionWidget) selectionWidget.value = value;
+        const selectedKeys = new Set(items.map((item) => selectionKey(item.category, item.name)));
+        for (const key of disabledStyleKeys) {
+            if (!selectedKeys.has(key)) disabledStyleKeys.delete(key);
+        }
+        syncExecutionSelection();
         setNodeDirty(node);
         renderSelectionTags();
         updateSelectionVisuals();
@@ -960,10 +980,28 @@ function setupStyleNodeWidget(node) {
 
         const fragment = document.createDocumentFragment();
         items.forEach((item, index) => {
+            const key = selectionKey(item.category, item.name);
+            const enabled = !disabledStyleKeys.has(key);
             const tag = createElement("span", {
                 title: item.category ? `${item.category} / ${item.name}` : item.name,
-                css: "height:19px;max-width:150px;display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;background:#2a2210;border:1px solid #5b4a20;border-radius:5px;padding:0 3px 0 6px;box-sizing:border-box;color:#f3f4f6;font-size:9px;",
+                css: `height:19px;max-width:150px;display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;background:#2a2210;border:1px solid #5b4a20;border-radius:5px;padding:0 3px;box-sizing:border-box;color:#f3f4f6;font-size:9px;opacity:${enabled ? "1" : ".55"};`,
             });
+            const checkbox = createElement("input", {
+                type: "checkbox",
+                title: `${enabled ? "Disable" : "Enable"} ${item.name}`,
+                css: "width:13px;height:13px;margin:0;flex:0 0 13px;cursor:pointer;accent-color:#f59e0b;",
+            });
+            checkbox.checked = enabled;
+            checkbox.setAttribute("aria-label", `Enable ${item.name}`);
+            checkbox.onpointerdown = (event) => event.stopPropagation();
+            checkbox.onclick = (event) => event.stopPropagation();
+            checkbox.onchange = () => {
+                if (checkbox.checked) disabledStyleKeys.delete(key);
+                else disabledStyleKeys.add(key);
+                syncExecutionSelection();
+                setNodeDirty(node);
+                renderSelectionTags();
+            };
             const label = createElement("span", {
                 text: item.name,
                 css: "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",
@@ -982,7 +1020,7 @@ function setupStyleNodeWidget(node) {
                 current.splice(index, 1);
                 saveSelection(current);
             };
-            tag.append(label, remove);
+            tag.append(checkbox, label, remove);
             fragment.appendChild(tag);
         });
         selectedList.replaceChildren(fragment);
@@ -1015,6 +1053,7 @@ function setupStyleNodeWidget(node) {
     };
 
     const syncRestoredSelection = () => {
+        disabledStyleKeys.clear();
         const propertyValue = typeof node.properties?.selected_styles === "string"
             ? node.properties.selected_styles
             : "";
@@ -1024,7 +1063,7 @@ function setupStyleNodeWidget(node) {
         const restoredValue = propertyValue || widgetValue;
         node.properties ||= {};
         node.properties.selected_styles = restoredValue;
-        if (selectionWidget) selectionWidget.value = restoredValue;
+        syncExecutionSelection();
         refreshSelectionUi();
     };
 

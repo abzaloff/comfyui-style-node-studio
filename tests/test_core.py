@@ -220,7 +220,7 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         sns.FAVORITES_PATH = self.previous_favorites_path
         self.temp_directory.cleanup()
 
-    async def test_edit_renames_in_place_and_preserves_extra_fields(self):
+    async def test_renaming_creates_copy_and_preserves_original(self):
         source_path = sns.STYLES_DIR / "Anime.json"
         sns._write_styles(
             source_path,
@@ -251,9 +251,11 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(response.status, 200)
         saved = sns._load_styles(source_path)
-        self.assertEqual(len(saved), 1)
-        self.assertEqual(saved[0]["name"], "New name")
-        self.assertEqual(saved[0]["name_cn"], "旧名称")
+        self.assertEqual(len(saved), 2)
+        self.assertEqual(saved[0]["name"], "Old name")
+        self.assertEqual(saved[0]["prompt"], "old, {prompt}")
+        self.assertEqual(saved[1]["name"], "New name")
+        self.assertEqual(saved[1]["name_cn"], "旧名称")
 
     async def test_api_rejects_path_traversal(self):
         response = await sns.save_style(
@@ -368,7 +370,7 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(removed.status, 200)
         self.assertEqual(sns._load_favorites(), [])
 
-    async def test_favorite_follows_style_move_and_rename(self):
+    async def test_favorite_stays_on_original_when_name_changes(self):
         sns._write_styles(
             sns.STYLES_DIR / "Anime.json",
             [{"name": "Old", "prompt": "{prompt}", "thumbnail": ""}],
@@ -392,10 +394,32 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(response.status, 200)
-        self.assertEqual(
-            sns._load_favorites(),
-            [{"category": "Illustration", "name": "New"}],
-        )
+        self.assertEqual(sns._load_favorites(), [{"category": "Anime", "name": "Old"}])
+        self.assertEqual(sns._load_styles(sns.STYLES_DIR / "Anime.json")[0]["name"], "Old")
+        self.assertEqual(sns._load_styles(sns.STYLES_DIR / "Illustration.json")[0]["name"], "New")
+
+    async def test_same_name_category_change_moves_style_and_favorite(self):
+        sns._write_styles(sns.STYLES_DIR / "Anime.json", [{"name": "Ink", "prompt": "old"}])
+        sns._write_favorites([{"category": "Anime", "name": "Ink"}])
+        response = await sns.save_style(FakeRequest({
+            "category": "Illustration", "original_category": "Anime", "original_name": "Ink",
+            "style": {"name": "Ink", "prompt": "new"},
+        }))
+        self.assertEqual(response.status, 200)
+        self.assertEqual(sns._load_styles(sns.STYLES_DIR / "Anime.json"), [])
+        self.assertEqual(sns._load_styles(sns.STYLES_DIR / "Illustration.json")[0]["prompt"], "new")
+        self.assertEqual(sns._load_favorites(), [{"category": "Illustration", "name": "Ink"}])
+
+    async def test_rename_rejects_existing_destination_without_changes(self):
+        path = sns.STYLES_DIR / "Anime.json"
+        original = [{"name": "Old", "prompt": "old"}, {"name": "Taken", "prompt": "taken"}]
+        sns._write_styles(path, original)
+        response = await sns.save_style(FakeRequest({
+            "category": "Anime", "original_category": "Anime", "original_name": "Old",
+            "style": {"name": "Taken", "prompt": "replacement"},
+        }))
+        self.assertEqual(response.status, 409)
+        self.assertEqual(sns._load_styles(path), original)
 
     async def test_delete_style_removes_favorite(self):
         sns._write_styles(

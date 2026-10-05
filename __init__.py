@@ -686,20 +686,28 @@ async def save_style(request):
             else _load_styles(source_path) if source_path else None
         )
 
-        existing_style = None
-        if source_styles is not None and original_name:
-            existing_style = next(
-                (style for style in source_styles if style.get("name") == original_name),
-                None,
+        existing_style = next(
+            (style for style in source_styles or [] if style.get("name") == original_name),
+            None,
+        )
+        if original_name and existing_style is None:
+            return web.json_response(
+                {"status": "error", "message": "Original style was not found"},
+                status=404,
             )
-        if existing_style is None:
-            existing_style = next(
-                (
-                    style
-                    for style in target_styles
-                    if style.get("name") == incoming_style["name"]
-                ),
-                None,
+        is_copy = existing_style is not None and original_name != incoming_style["name"]
+        target_exists = any(
+            style.get("name") == incoming_style["name"] for style in target_styles
+        )
+        updating_same_record = (
+            existing_style is not None
+            and source_path == target_path
+            and not is_copy
+        )
+        if target_exists and not updating_same_record:
+            return web.json_response(
+                {"status": "error", "message": "A style with this name already exists in the category"},
+                status=409,
             )
 
         previous_thumbnail = (
@@ -708,7 +716,7 @@ async def save_style(request):
         merged_style = dict(existing_style or {})
         merged_style.update(incoming_style)
 
-        if source_styles is not None and original_name:
+        if existing_style is not None and not is_copy:
             source_styles[:] = [
                 style for style in source_styles if style.get("name") != original_name
             ]
@@ -721,23 +729,26 @@ async def save_style(request):
         target_styles.append(merged_style)
 
         _write_styles(target_path, target_styles)
-        if source_path and source_path != target_path:
+        if source_path and source_path != target_path and not is_copy:
             # If the second write fails, the safe failure mode is a duplicate,
             # not loss of the original style.
             _write_styles(source_path, source_styles)
 
-        _move_favorite(
-            original_category,
-            original_name,
-            category,
-            incoming_style["name"],
-        )
+        if not is_copy:
+            _move_favorite(
+                original_category,
+                original_name,
+                category,
+                incoming_style["name"],
+            )
 
         new_thumbnail = merged_style.get("thumbnail", "")
         previous_thumbnail_path = _managed_thumbnail_path(previous_thumbnail)
         new_thumbnail_path = _managed_thumbnail_path(new_thumbnail)
         if (
-            previous_thumbnail != new_thumbnail
+            not is_copy
+            and existing_style is not None
+            and previous_thumbnail != new_thumbnail
             and previous_thumbnail_path != new_thumbnail_path
         ):
             _delete_managed_thumbnail(previous_thumbnail)
