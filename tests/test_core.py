@@ -48,6 +48,17 @@ class ValidationTests(unittest.TestCase):
             [("Photo", "Soft, cinematic")],
         )
 
+    def test_disabled_json_selection_is_not_applied(self):
+        value = json.dumps([
+            {"category": "Art", "name": "Ink", "enabled": False},
+            {"category": "Art", "name": "Oil", "enabled": True},
+            {"category": "Art", "name": "Pencil"},
+        ])
+        self.assertEqual(
+            sns._parse_selected_styles(value),
+            [("Art", "Oil"), ("Art", "Pencil")],
+        )
+
 
 class PromptProcessingTests(unittest.TestCase):
     def setUp(self):

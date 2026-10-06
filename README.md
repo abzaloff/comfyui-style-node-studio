@@ -66,8 +66,10 @@ For an input prompt of `portrait` and a style containing
 - Clicking a card selects or deselects the style.
 - Selected styles remain visible as removable tags beside the search field,
   even when browsing another category.
-- The `◎` button beside `Clear All` temporarily disables all selected styles
-  when any are active, or enables all of them when none are active.
+- Each tag's checkbox state is saved with the workflow and restored when the
+  workflow is opened again. Newly selected styles start enabled.
+- The `◎` button beside `Clear All` disables all selected styles when any are
+  active, or enables all of them when none are active. Its state is saved too.
 - The pencil button opens the style in the manager.
 - The camera button replaces the preset thumbnail with the latest
   ComfyUI-generated image without opening the manager.

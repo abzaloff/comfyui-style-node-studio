@@ -302,7 +302,7 @@ def _parse_selected_styles(value):
                 if isinstance(item, dict):
                     category = item.get("category")
                     name = item.get("name")
-                    if isinstance(category, str) and isinstance(name, str):
+                    if isinstance(category, str) and isinstance(name, str) and item.get("enabled") is not False:
                         result.append((category, name))
                 elif isinstance(item, str) and item.strip():
                     result.append(item.strip())

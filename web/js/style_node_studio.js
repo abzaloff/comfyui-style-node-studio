@@ -360,7 +360,7 @@ function parseSelection(value) {
             if (Array.isArray(parsed)) {
                 return parsed
                     .filter((item) => item && typeof item.category === "string" && typeof item.name === "string")
-                    .map((item) => ({ category: item.category, name: item.name }));
+                    .map((item) => ({ category: item.category, name: item.name, enabled: item.enabled !== false }));
             }
         } catch (_) {
             // Fall through to the legacy comma-separated format.
@@ -370,8 +370,8 @@ function parseSelection(value) {
         const valuePart = item.trim();
         const separator = valuePart.indexOf(" / ");
         return separator >= 0
-            ? { category: valuePart.slice(0, separator), name: valuePart.slice(separator + 3) }
-            : { category: "", name: valuePart };
+            ? { category: valuePart.slice(0, separator), name: valuePart.slice(separator + 3), enabled: true }
+            : { category: "", name: valuePart, enabled: true };
     }).filter((item) => item.name);
 }
 
@@ -898,7 +898,6 @@ function setupStyleNodeWidget(node) {
 
     let refreshSelectionUi = () => {};
     let syncExecutionSelection = () => {};
-    const disabledStyleKeys = new Set();
     let domWidget;
     const hasNativeDomWidget = typeof node.addDOMWidget === "function";
     if (hasNativeDomWidget) {
@@ -907,7 +906,6 @@ function setupStyleNodeWidget(node) {
             setValue: (value) => {
                 const restoredValue = typeof value === "string" ? value : "";
                 node.properties.selected_styles = restoredValue;
-                disabledStyleKeys.clear();
                 queueMicrotask(() => {
                     syncExecutionSelection();
                     refreshSelectionUi();
@@ -953,16 +951,15 @@ function setupStyleNodeWidget(node) {
     syncExecutionSelection = () => {
         if (!selectionWidget) return;
         selectionWidget.value = JSON.stringify(getSelection().filter(
-            (item) => !disabledStyleKeys.has(selectionKey(item.category, item.name))
-        ));
+            (item) => item.enabled !== false
+        ).map((item) => ({ category: item.category, name: item.name })));
     };
     const saveSelection = (items) => {
-        const value = JSON.stringify(items);
-        node.properties.selected_styles = value;
-        const selectedKeys = new Set(items.map((item) => selectionKey(item.category, item.name)));
-        for (const key of disabledStyleKeys) {
-            if (!selectedKeys.has(key)) disabledStyleKeys.delete(key);
-        }
+        node.properties.selected_styles = JSON.stringify(items.map((item) => ({
+            category: item.category,
+            name: item.name,
+            enabled: item.enabled !== false,
+        })));
         syncExecutionSelection();
         setNodeDirty(node);
         renderSelectionTags();
@@ -970,8 +967,8 @@ function setupStyleNodeWidget(node) {
     };
     const selectedKeySet = () => new Set(getSelection().map((item) => selectionKey(item.category, item.name)));
     const updateToggleAllButton = (items) => {
-        const anyEnabled = items.some((item) => !disabledStyleKeys.has(selectionKey(item.category, item.name)));
-        const allEnabled = items.every((item) => !disabledStyleKeys.has(selectionKey(item.category, item.name)));
+        const anyEnabled = items.some((item) => item.enabled !== false);
+        const allEnabled = items.every((item) => item.enabled !== false);
         toggleAllButton.disabled = items.length === 0;
         toggleAllButton.style.opacity = items.length ? "1" : ".55";
         toggleAllButton.title = anyEnabled ? "Disable all selected styles" : "Enable all selected styles";
@@ -994,8 +991,7 @@ function setupStyleNodeWidget(node) {
 
         const fragment = document.createDocumentFragment();
         items.forEach((item, index) => {
-            const key = selectionKey(item.category, item.name);
-            const enabled = !disabledStyleKeys.has(key);
+            const enabled = item.enabled !== false;
             const tag = createElement("span", {
                 title: item.category ? `${item.category} / ${item.name}` : item.name,
                 css: `height:19px;max-width:150px;display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;background:#2a2210;border:1px solid #5b4a20;border-radius:5px;padding:0 3px;box-sizing:border-box;color:#f3f4f6;font-size:9px;opacity:${enabled ? "1" : ".55"};`,
@@ -1010,11 +1006,9 @@ function setupStyleNodeWidget(node) {
             checkbox.onpointerdown = (event) => event.stopPropagation();
             checkbox.onclick = (event) => event.stopPropagation();
             checkbox.onchange = () => {
-                if (checkbox.checked) disabledStyleKeys.delete(key);
-                else disabledStyleKeys.add(key);
-                syncExecutionSelection();
-                setNodeDirty(node);
-                renderSelectionTags();
+                const current = getSelection();
+                current[index].enabled = checkbox.checked;
+                saveSelection(current);
             };
             const label = createElement("span", {
                 text: item.name,
@@ -1067,7 +1061,6 @@ function setupStyleNodeWidget(node) {
     };
 
     const syncRestoredSelection = () => {
-        disabledStyleKeys.clear();
         const propertyValue = typeof node.properties?.selected_styles === "string"
             ? node.properties.selected_styles
             : "";
@@ -1259,15 +1252,9 @@ function setupStyleNodeWidget(node) {
         event.stopPropagation();
         const items = getSelection();
         if (!items.length) return;
-        const anyEnabled = items.some((item) => !disabledStyleKeys.has(selectionKey(item.category, item.name)));
-        if (anyEnabled) {
-            for (const item of items) disabledStyleKeys.add(selectionKey(item.category, item.name));
-        } else {
-            disabledStyleKeys.clear();
-        }
-        syncExecutionSelection();
-        setNodeDirty(node);
-        renderSelectionTags();
+        const enableAll = !items.some((item) => item.enabled !== false);
+        for (const item of items) item.enabled = enableAll;
+        saveSelection(items);
     };
     managerButton.onclick = (event) => {
         event.stopPropagation();
